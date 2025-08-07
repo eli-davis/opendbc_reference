@@ -1,6 +1,34 @@
 # B"H
 
-#from opendbc.can.can_define import CANDefine
+# ______________________________________________________________________ #
+# ______________________________________________________________________ #
+
+# no_ipma:
+
+# (1) disabled fcw:
+#
+# ret.stockFcw = False #bool(cp_cam.vl["ACCDATA_3"]["FcwVisblWarn_B_Rq"])
+
+# (2) disabled aeb:
+#
+# ret.stockAeb = False #bool(cp_cam.vl["ACCDATA_2"]["CmbbBrkDecel_B_Rq"])
+
+# (3) disabled blindspot
+#
+# #cp_bsm = cp_cam if self.CP.flags & FordFlags.CANFD else cp
+# ret.leftBlindspot = False # cp_bsm.vl["Side_Detect_L_Stat"]["SodDetctLeft_D_Stat"] != 0
+# ret.rightBlindspot = False #cp_bsm.vl["Side_Detect_R_Stat"]["SodDetctRight_D_Stat"] != 0
+
+# (4) disable stock ipma "TJA"/"LKAS"
+#
+# # Stock values from IPMA so that we can retain some stock functionality
+# self.acc_tja_status_stock_values = None # cp_cam.vl["ACCDATA_3"]
+# self.lkas_status_stock_values = None #cp_cam.vl["IPMA_Data"]
+
+# ______________________________________________________________________ #
+# ______________________________________________________________________ #
+
+from opendbc.can.can_define import CANDefine
 #from opendbc.can.parser import CANParser
 from opendbc.car import Bus, create_button_events, structs
 from opendbc.car.common.conversions import Conversions as CV
@@ -17,6 +45,7 @@ class CarState(CarStateBase):
   def __init__(self, CP):
     super().__init__(CP)
     #can_define = CANDefine(DBC[CP.carFingerprint][Bus.pt])
+    can_define = CANDefine('ford_lincoln_base_pt')
     if CP.transmissionType == TransmissionType.automatic:
       self.shifter_values = can_define.dv["PowertrainData_10"]["TrnRng_D_Rq"]
 
@@ -25,7 +54,7 @@ class CarState(CarStateBase):
 
   def update(self, can_parsers) -> structs.CarState:
     cp = can_parsers[Bus.pt]
-    cp_cam = can_parsers[Bus.cam]
+    #cp_cam = can_parsers[Bus.cam]
 
     ret = structs.CarState()
 
@@ -69,7 +98,7 @@ class CarState(CarStateBase):
     ret.cruiseState.standstill = cp.vl["EngBrakeData"]["AccStopMde_D_Rq"] == 3
     ret.accFaulted = cp.vl["EngBrakeData"]["CcStat_D_Actl"] in (1, 2)
     if not self.CP.openpilotLongitudinalControl:
-      ret.accFaulted = ret.accFaulted or cp_cam.vl["ACCDATA"]["CmbbDeny_B_Actl"] == 1
+      ret.accFaulted = ret.accFaulted # or cp_cam.vl["ACCDATA"]["CmbbDeny_B_Actl"] == 1
 
     # gear
     if self.CP.transmissionType == TransmissionType.automatic:
@@ -85,8 +114,8 @@ class CarState(CarStateBase):
     ret.engineRpm = cp.vl["EngVehicleSpThrottle"]["EngAout_N_Actl"]
 
     # safety
-    ret.stockFcw = bool(cp_cam.vl["ACCDATA_3"]["FcwVisblWarn_B_Rq"])
-    ret.stockAeb = bool(cp_cam.vl["ACCDATA_2"]["CmbbBrkDecel_B_Rq"])
+    ret.stockFcw = False #bool(cp_cam.vl["ACCDATA_3"]["FcwVisblWarn_B_Rq"])
+    ret.stockAeb = False #bool(cp_cam.vl["ACCDATA_2"]["CmbbBrkDecel_B_Rq"])
 
     # button presses
     ret.leftBlinker = cp.vl["Steering_Data_FD1"]["TurnLghtSwtch_D_Stat"] == 1
@@ -105,15 +134,18 @@ class CarState(CarStateBase):
 
     # blindspot sensors
     if self.CP.enableBsm:
-      cp_bsm = cp_cam if self.CP.flags & FordFlags.CANFD else cp
-      ret.leftBlindspot = cp_bsm.vl["Side_Detect_L_Stat"]["SodDetctLeft_D_Stat"] != 0
-      ret.rightBlindspot = cp_bsm.vl["Side_Detect_R_Stat"]["SodDetctRight_D_Stat"] != 0
+      #cp_bsm = cp_cam if self.CP.flags & FordFlags.CANFD else cp
+      ret.leftBlindspot = False # cp_bsm.vl["Side_Detect_L_Stat"]["SodDetctLeft_D_Stat"] != 0
+      ret.rightBlindspot = False #cp_bsm.vl["Side_Detect_R_Stat"]["SodDetctRight_D_Stat"] != 0
+
+
 
     # Stock steering buttons so that we can passthru blinkers etc.
     self.buttons_stock_values = cp.vl["Steering_Data_FD1"]
+
     # Stock values from IPMA so that we can retain some stock functionality
-    self.acc_tja_status_stock_values = cp_cam.vl["ACCDATA_3"]
-    self.lkas_status_stock_values = cp_cam.vl["IPMA_Data"]
+    self.acc_tja_status_stock_values = None # cp_cam.vl["ACCDATA_3"]
+    self.lkas_status_stock_values = None #cp_cam.vl["IPMA_Data"]
 
     ret.buttonEvents = [
       *create_button_events(self.distance_button, prev_distance_button, {1: ButtonType.gapAdjustCruise}),
