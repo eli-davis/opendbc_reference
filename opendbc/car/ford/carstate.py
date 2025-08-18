@@ -217,7 +217,7 @@ class CarState(CarStateBase):
   @staticmethod
   def get_can_parsers(CP):
 
-    pt = return_can_messages(CP)
+    pt_messages = return_can_messages(CP)
 
     print(list(DBC.keys()))
 
